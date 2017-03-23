@@ -21,6 +21,8 @@ def train_alternating_epsilon(trainx,trainy,task_indexes,gamma,Dini,
     epsilon = epsilon_init;
     costfunc=[]
     i = 1;
+    
+    #Ierate over epsilon
     while (epsilon > eps):
         Dmin_e_method = lambda b: Dmin_method(np.sqrt(b**2+epsilon));
         We,De,costfunc_e = train_alternating(trainx,trainy,task_indexes,gamma,Dini,iterations,

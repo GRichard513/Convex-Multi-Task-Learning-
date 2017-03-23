@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 eps=1e-8
 
+    #Kernel regression with identity
 def kernel_regression(K,y,gamma):
 
     n = len(K)

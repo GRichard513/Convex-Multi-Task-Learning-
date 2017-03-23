@@ -8,11 +8,24 @@ eps=1e-8
 
 def train_alternating(x_train,y_train,task_indexes,gamma,
                       Dini,max_iter,method,kernel_method,f_method,Dmin_method):
+#Main algorithm to be used in the epsilon version
 
-    n_samples=len(x_train)
+####Variables####
+#x_train: features
+#y_train: labels
+#task_indexes: start index for each task in x_train
+#gamma: penalization parameter
+#Dini: intial value of D
+#max_iter: number of iterations
+#method: 'feature' (paper), 'independent' (separate tasks), 'diagonal' (D is diagonal)
+#kernel_method: which kernel to use (only linear is implemented now)
+#f_method: evaluates pseudo inverse
+#Dmin_method: method to find minimum lambda  (see article)
+
+    dim=len(x_train)
     T=len(task_indexes)
-
-
+    
+    #Some tests
     if (np.max(abs(Dini-Dini.T)) > eps):
         print('D should be symmetric')
         return
@@ -22,24 +35,32 @@ def train_alternating(x_train,y_train,task_indexes,gamma,
     if (abs(np.trace(Dini)-1) > 100*eps):
         print('D should have trace  1')
         return
-
+    
+    #Initial values of D and W
     D = Dini
     W = np.zeros((len(x_train),len(task_indexes)))
+    
+    ####General case####
     if method=='feat':
         cost=[]
+        
+        #Singular Value decomposition
         U,S,V=np.linalg.svd(D)
+        
+        #Pseudo inverse + transformation
         fS=f_method(S)
         temp=np.sqrt(fS)
         tempi=np.where(temp>eps)
         temp[tempi]=1/temp[tempi]
+        
+        #D+ in the article
         fD_isqrt=np.dot(np.dot(U,np.diag(temp)),U.T)
+        
         costfunc=[]
-        #print('Beginning of iterations')
         for i in range(max_iter):
             new_trainx=np.dot(fD_isqrt,x_train)
             W,costf,err,reg=train_kernel(new_trainx,y_train,task_indexes,
                                         gamma,kernel_method)
-            #print('Train Kernel -- OK')
 
             W=np.dot(fD_isqrt,W)
             costfunc.append([i,costf,err,reg])
@@ -56,11 +77,13 @@ def train_alternating(x_train,y_train,task_indexes,gamma,
             tempi=np.where(temp>eps)
             temp[tempi]=1/temp[tempi]
             fD_isqrt=np.dot(np.dot(U,np.diag(temp)),U.T)
-        #print('End of iterations')
+       
+    ####Independent case####
     if method=='independent':
         W,costfunc,err,reg=train_kernel(x_train,y_train,task_indexes,
                                        gamma,kernel_method)
-        D=[]
+        D=0*D
+    ####General case####
     if method=='diagonal':
         if(np.linalg.norm(D-np.diag(np.diag(D)))>eps):
             print('D should be diagonal')

@@ -1,38 +1,92 @@
-from numpy.linalg import eigvals as eig
 import numpy as np
-import matplotlib.pyplot as plt
-from train_alternating_epsilon import *
-from test_error import *
+import pandas as pd
+from utils import *
 
+def algo1(X_train_df,y_train_df,gamma,epsilon,tol,max_iter=100):
+    #Algorithm 1 in the article
+    
+    #Set-up for the input
+    X=X_train_df.drop(['tasks'],axis=1).values
+    y=y_train_df.values
+    T=len(np.unique(X_train_df['tasks'].values))
+    d=X.shape[1]
+    
+    #Initialization
+    D=np.eye(d)/d
+    W=np.zeros((d,T))
+    
+    l=[]#Cost at each iteration
+    list_sqe=[]#MSE at each iteration
+    list_sparse=[]#(2,1)-norm of A at each iteration
+    tol_test=tol+1
+    it=0
+    
+    while (tol_test>tol and it<max_iter):
+        
+        #Decomposition on each task (for W-minimization)
+        for t in range(T):
+            x_t=X[np.where(X_train_df['tasks'].values==t)]
+            y_t=y[np.where(X_train_df['tasks'].values==t)]
+            
+            #Computation of w_t=min(L(y,<w,x>)+gamma*<w,D^(-1)*w>)
+            w=compute_min_W(x_t,y_t,D,gamma)
+            W[:,t]=w.reshape(-1)
+        
+        #Computation of D=(W*W.T+eps*I)/tr(W*W.T+eps*I)
+        tmp=np.dot(W,W.T)+epsilon*np.eye(len(W))
+        u,s,v=np.linalg.svd(tmp)
+        tmp=np.dot(u,np.dot(np.diag(np.sqrt(s)),u.T))
+        D=tmp/np.trace(tmp)
+        
+        #Cost update
+        l.append(R_cost(X_train_df,y_train_df,W,D,gamma))
+        if it>0:
+            tol_test=np.linalg.norm(W-W_prev)
+        W_prev=W.copy()
+        it=it+1
+        _,U=np.linalg.eig(D)
+        A=np.dot(U.T,W)
+        list_sparse.append(norm_21(A))
+        y_pred=compute_y_pred(A,U,X_train_df)
+        list_sqe.append(np.linalg.norm(y_pred-y_train_df.values))
 
-def run_code_example(gammas,trainx,trainy,testx,testy,task_indexes,task_indexes_test,cv_size,Dini,iterations,
-    method, epsilon_init, fname):
-#Main algorithm ~ run
+    return W,D,l,list_sqe,list_sparse
+    
+def algo1_eps(X_train_df,y_train_df,gamma,epsilon_init=1,tol=1e-3,tol_eps=1e-7,max_iter=20):
+    
+    #If epsilon already small enough
+    if (epsilon_init < tol_eps):
+        W,D,_,_,_ = algo1(X_train_df,y_train_df,gamma,epsilon,tol,max_iter)
+        mineps = 0
+        return
+    
+    #Initialization
+    mincost = float('inf');
+    epsilon = epsilon_init;
+    cost=0
+    i = 1;
+    list_cost=[]
+    list_sqe=[]
+    
+    #Ierate over epsilon
+    while (epsilon > tol_eps):
+        #Computation of W,D
+        We,De,_,_,_ = algo1(X_train_df,y_train_df,gamma,epsilon,tol,max_iter);
 
-####Variables####
-#trainx: features for train
-#trainy: labels for train
-#task_indexes: start index for each task in x_train
-#gamma: penalization parameter
-#Dini: intial value of D
-#max_iter: number of iterations
-#method: 'feature' (paper), 'independent' (separate tasks), 'diagonal' (D is diagonal)
-#kernel_method: which kernel to use (only linear is implemented now)
-#f_method: evaluates pseudo inverse
-#Dmin_method: method to find minimum lambda  (see article)
-#cv_size: useless
-#epsilon_init: inial value of epsilon
-#fname: filename where to save results (not used)
+        curcost=R_cost(X_train_df,y_train_df,We,De,gamma)
+        list_cost.append(curcost)
+        
+        _,Ue=np.linalg.eig(De)
+        Ae=np.dot(Ue.T,We)
 
-
-    Dmin_method= lambda b: b/sum(b)
-
-
-    theW,theD,costs,mineps = train_alternating_epsilon(trainx, trainy, task_indexes, gammas, Dini, iterations,
-        method, kernel_regression, vec_inv, Dmin_method, epsilon_init);
-
-    testerrs = np.mean(test_error_unbalanced(theW,testx,testy,task_indexes_test));
-
-    #save(sprintf('results_%s_%s_lin.mat',fname,method_str),'gammas','Dini','method_str',
-    #    'testerrs','theW','theD','costs','mineps');
-    return testerrs,theW,theD,mineps
+        y_pred=compute_y_pred(Ae,Ue,X_train_df)
+        list_sqe.append(np.linalg.norm(y_pred-y_train_df.values))
+        if (curcost < mincost):
+            mincost = curcost;
+            mineps = epsilon;
+            W = We;
+            D = De;
+        
+        epsilon = epsilon / 10;
+        
+    return W,D,list_cost,mineps,list_sqe

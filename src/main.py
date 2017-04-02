@@ -157,10 +157,15 @@ def algo2_eps(X_train,y_train,gamma,epsilon_init=1,tol=1e-3,tol_eps=1e-7,max_ite
 
     #If epsilon already small enough
     if (epsilon_init < tol_eps):
-        B,K_til,mu_idx = algo2(X_train,y_train,gamma,epsilon,tol,max_iter=100,kernel='gaussian',sigma=None)
+        B,K_til,mu_idx = algo2(X_train,y_train,gamma,epsilon_init,tol,max_iter=100,kernel='gaussian',sigma=None)
         mineps = 0
+<<<<<<< HEAD
         return
 
+=======
+        return B,list_cost,mineps
+    
+>>>>>>> 144e3f5b8b1da6b8ec2f3786fb040ff07653f305
     #Initialization
     mincost = float('inf');
     epsilon = epsilon_init;
@@ -169,7 +174,7 @@ def algo2_eps(X_train,y_train,gamma,epsilon_init=1,tol=1e-3,tol_eps=1e-7,max_ite
     list_cost=[]
 
     #Ierate over epsilon
-    while (epsilon > tol_eps):
+    while (epsilon >= tol_eps):
         #Computation of W,D
         Be,K_til,mu_idx = algo2(X_train,y_train,gamma,epsilon,tol,max_iter,kernel='gaussian',sigma=None);
 

@@ -51,7 +51,7 @@ def gaussian_kernel(X,s=1):
 
 def explained_var(y_pred,y_train):
     #Computes the explained variance
-    SS_err=np.linalg.norm(y_pred-y_train)**2/len(y_pred)**2
+    SS_err=np.linalg.norm(y_pred-y_train)**2/len(y_pred)
     SS_tot=np.var(y_train)
     return 1-SS_err/SS_tot
 

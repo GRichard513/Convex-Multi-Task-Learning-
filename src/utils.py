@@ -68,54 +68,54 @@ def compute_min_W(X,y,D,gamma):
     w=np.dot(X_tmp,a)
     return np.dot(D_s,w)
 
-def R_cost(X_df,y_df,W,D,gamma):
+def R_cost(X_df,y_df,W,D,gamma,target):
     #Computes the R function
-    X=X_df.drop(['tasks'],axis=1).values
+    X=X_df.drop([target],axis=1).values
     y=y_df.values
-    T=len(np.unique(X_df['tasks'].values))
+    T=len(np.unique(X_df[target].values))
     d=X.shape[1]
     cost=0
     for t in range(T):
-        x_t=X[np.where(X_df['tasks'].values==t)]
-        y_t=y[np.where(X_df['tasks'].values==t)]
+        x_t=X[np.where(X_df[target].values==t)]
+        y_t=y[np.where(X_df[target].values==t)]
         w=W[:,t]
         cost+=np.linalg.norm(y_t-np.dot(w,x_t.T))
         D_inv=np.dot(inv_sqrt_mat(D),inv_sqrt_mat(D))
         cost+=gamma*np.dot(w.T,np.dot(D_inv,w))
     return cost
 
-def E_cost(X_df,y_df,A,U,gamma):
+def E_cost(X_df,y_df,A,U,gamma, target):
     #Computes the EPS function (cost)
-    X=X_df.drop(['tasks'],axis=1).values
+    X=X_df.drop([target],axis=1).values
     y=y_df.values
-    T=len(np.unique(X_df['tasks'].values))
+    T=len(np.unique(X_df[target].values))
     d=X.shape[1]
     cost=0
     for t in range(T):
-        x_t=X[np.where(X_df['tasks'].values==t)]
-        y_t=y[np.where(X_df['tasks'].values==t)]
+        x_t=X[np.where(X_df[target].values==t)]
+        y_t=y[np.where(X_df[target].values==t)]
         a_t=A[:,t]
         cost+=np.linalg.norm(y_t-np.dot(a_t.T,np.dot(U.T,x_t.T)))
     cost+=gamma*(np.sum([np.linalg.norm(a,ord=2) for a in A]))**2
     return cost
 
-def compute_y_pred(A,U,X_df):
+def compute_y_pred(A,U,X_df, target):
     #Gives y_pred from A and U
-    X=X_df.drop(['tasks'],axis=1).values
-    T=len(np.unique(X_df['tasks'].values))
+    X=X_df.drop([target],axis=1).values
+    T=len(np.unique(X_df[target].values))
     d=X.shape[1]
     y_pred=np.zeros(len(X))
     for t in range(T):
-        x_t=X[np.where(X_df['tasks'].values==t)]
+        x_t=X[np.where(X_df[target].values==t)]
         a_t=A[:,t]
-        y_pred[np.where(X_df['tasks'].values==t)]=np.dot(a_t.T,np.dot(U.T,x_t.T))
+        y_pred[np.where(X_df[target].values==t)]=np.dot(a_t.T,np.dot(U.T,x_t.T))
         #print(np.dot(a_t.T,np.dot(U.T,x_t.T)))
         #print(y_pred[np.where(X_df['tasks'].values==t)])
     return y_pred
 
-def error_A(A,U,X_df,y_df,l=1):
+def error_A(A,U,X_df,y_df,l=1, target='tasks'):
     #MAE based on A
-    y_pred=compute_y_pred(A,U,X_df)
+    y_pred=compute_y_pred(A,U,X_df,target)
     return np.norm(y_pred-y_df.values,ord=l)/len(y_pred)
 
 ######### Algorithm 2 ########
@@ -133,7 +133,7 @@ def gs(X):
         if (np.linalg.norm(temp_vec)>1e-5):
             ll.append(i)
             Y.append(temp_vec)
-                
+
     return np.array(Y/np.linalg.norm(Y,axis=0)), np.array(ll)
 
 def gs_cofficient(v1, v2):
@@ -171,15 +171,15 @@ def compute_A_from_B(B,K_til,mu_idx):
     A_b=np.dot(Q_b.T,sig)
     return A_b
 
-def compute_y_pred_B(B,X_df,K_til):
+def compute_y_pred_B(B,X_df,K_til,target):
     #Computes y_pred from the B matrix
     T=np.shape(B)[1]
     y_pred=np.zeros(K_til.shape[1])
     for t in range(T):
-        ind_t=np.where(X_df['tasks']==t)
+        ind_t=np.where(X_df[target]==t)
         y_pred[ind_t]=np.dot(B.T[t],K_til.T[ind_t].T)
     return y_pred
 
-def error_B(X_df,y_df,B,K_til,l=1):
-    y_pred=compute_y_pred_B(B,X_df,K_til)
+def error_B(X_df,y_df,B,K_til,l=1,target='tasks'):
+    y_pred=compute_y_pred_B(B,X_df,K_til,target)
     return np.linalg.norm(y_pred-y_df.values,ord=l)/len(y_pred)
